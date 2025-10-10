@@ -6,7 +6,7 @@ import json
 import os
 
 # --- Bot Config ---
-TOKEN: Final = '8168577329:AAFgYEHmIe-SDuRL3tqt6rx1MtAnJprSbRc'
+TOKEN: Final = os.getenv("BOT_TOKEN")
 BOT_USERNAME: Final = '@alitacode_bot'
 ADMIN_ID: Final = 7327016053  # Replace with your Telegram user ID
 
@@ -147,3 +147,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
