@@ -1,13 +1,11 @@
-from typing import Final, Dict, List, Optional
+from typing import Final, Dict, List
 from telegram import (
     Update, 
     InlineKeyboardButton, 
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
     KeyboardButton,
-    BotCommand,
-    Poll,
-    ChatPermissions
+    BotCommand
 )
 from telegram.ext import (
     Application, 
@@ -15,9 +13,7 @@ from telegram.ext import (
     MessageHandler, 
     CallbackQueryHandler,
     ContextTypes,
-    filters,
-    JobQueue,
-    ConversationHandler
+    filters
 )
 import random
 import json
@@ -43,10 +39,6 @@ if not TOKEN:
 
 BOT_USERNAME: Final = '@alitacode_bot'
 ADMIN_ID: Final = 7327016053
-CHANNEL_ID: Final = "@your_channel"  # Replace with your channel username
-
-# Conversation states
-BROADCAST_TYPE, BROADCAST_CONTENT, BROADCAST_CONFIRM = range(3)
 
 # ==================== DATA MANAGEMENT ====================
 class DataManager:
@@ -74,8 +66,6 @@ class DataManager:
 USER_FILE = "users.json"
 GROUP_FILE = "groups.json"
 SETTINGS_FILE = "settings.json"
-RULES_FILE = "rules.json"
-BROADCAST_FILE = "broadcasts.json"
 CHANNEL_FILE = "channel.json"
 
 user_data = DataManager.load_data(USER_FILE, {})
@@ -84,15 +74,10 @@ bot_settings = DataManager.load_data(SETTINGS_FILE, {
     "auto_reply": True,
     "welcome_message": True,
     "anti_spam": True,
-    "auto_moderation": True,
-    "daily_updates": True
+    "auto_moderation": True
 })
-group_rules = DataManager.load_data(RULES_FILE, {})
-broadcast_history = DataManager.load_data(BROADCAST_FILE, [])
 channel_data = DataManager.load_data(CHANNEL_FILE, {
-    "last_message_time": datetime.now().isoformat(),
-    "inactive_threshold_hours": 5,
-    "inactive_threshold_days": 2
+    "last_message_time": datetime.now().isoformat()
 })
 
 # ==================== FREE API SERVICES ====================
@@ -223,64 +208,41 @@ class AutoMessaging:
 # ==================== MODERATION SYSTEM ====================
 class ModerationSystem:
     BAD_WORDS = ["fuck", "shit", "asshole", "bastard", "bitch", "damn", "hell"]
-    SPAM_LIMIT = 5  # Messages per minute
-    FLOOD_LIMIT = 10  # Characters per message
+    SPAM_LIMIT = 5
     
     @staticmethod
-    def check_violation(message_text: str, user_id: str, group_id: str) -> Optional[str]:
-        # Check bad words
+    def check_violation(message_text: str, user_id: str) -> str:
         if any(word in message_text.lower() for word in ModerationSystem.BAD_WORDS):
             return "bad_language"
         
-        # Check spam (simplified)
         user_msg_count = user_data.get(user_id, {}).get("message_count", 0)
         if user_msg_count > ModerationSystem.SPAM_LIMIT:
             return "spamming"
         
-        # Check flood
-        if len(message_text) > ModerationSystem.FLOOD_LIMIT * 10:
+        if len(message_text) > 100:
             return "flooding"
         
-        # Check links spam
         if len(re.findall(r'http[s]?://', message_text)) > 3:
             return "link_spam"
         
-        return None
+        return ""
 
     @staticmethod
     async def take_action(update: Update, context: ContextTypes.DEFAULT_TYPE, violation: str, user_id: str):
         user = update.effective_user
         actions = {
-            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language.", "mute"),
-            "spamming": ("🚫 Spam Detected", "Please avoid sending too many messages.", "mute"),
-            "flooding": ("📢 Flood Warning", "Please keep messages concise.", "warn"),
-            "link_spam": ("🔗 Link Spam", "Too many links detected.", "mute")
+            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language."),
+            "spamming": ("🚫 Spam Detected", "Please avoid sending too many messages."),
+            "flooding": ("📢 Flood Warning", "Please keep messages concise."),
+            "link_spam": ("🔗 Link Spam", "Too many links detected.")
         }
         
-        action_text, warning, action_type = actions.get(violation, ("⚠️ Rule Violation", "Please follow group rules.", "warn"))
-        
+        action_text, warning = actions.get(violation, ("⚠️ Rule Violation", "Please follow group rules."))
         warning_msg = f"{action_text}\nUser: {user.first_name}\nReason: {warning}"
         
         try:
-            if action_type == "mute":
-                # Mute for 10 minutes
-                until_date = datetime.now() + timedelta(minutes=10)
-                await context.bot.restrict_chat_member(
-                    chat_id=update.effective_chat.id,
-                    user_id=user_id,
-                    permissions=ChatPermissions(
-                        can_send_messages=False,
-                        can_send_media_messages=False,
-                        can_send_other_messages=False,
-                        can_add_web_page_previews=False
-                    ),
-                    until_date=until_date
-                )
-                warning_msg += "\n⏰ Muted for 10 minutes"
-            
             await update.message.reply_text(warning_msg)
             logger.info(f"🛡️ Moderation action: {violation} for user {user_id}")
-            
         except Exception as e:
             logger.error(f"❌ Moderation action failed: {e}")
 
@@ -289,17 +251,13 @@ class ChannelMonitor:
     @staticmethod
     async def check_channel_activity(context: ContextTypes.DEFAULT_TYPE):
         try:
-            # Get channel info (simulated - you'll need proper channel access)
             last_message_time = datetime.fromisoformat(channel_data["last_message_time"])
             current_time = datetime.now()
             
             hours_inactive = (current_time - last_message_time).total_seconds() / 3600
             days_inactive = hours_inactive / 24
             
-            threshold_hours = channel_data["inactive_threshold_hours"]
-            threshold_days = channel_data["inactive_threshold_days"]
-            
-            if hours_inactive >= threshold_hours or days_inactive >= threshold_days:
+            if hours_inactive >= 5 or days_inactive >= 2:
                 reminder_msg = f"""
 🔔 *Channel Activity Reminder*
 
@@ -308,15 +266,14 @@ class ChannelMonitor:
 • Hours inactive: {hours_inactive:.1f}h
 • Days inactive: {days_inactive:.1f}d
 
-💡 Suggestion: Consider posting new content to keep your audience engaged!
+💡 Suggestion: Consider posting new content!
 """
-                # Send reminder to admin
                 await context.bot.send_message(
                     chat_id=ADMIN_ID,
                     text=reminder_msg,
                     parse_mode='Markdown'
                 )
-                logger.info("📢 Channel inactivity reminder sent to admin")
+                logger.info("📢 Channel inactivity reminder sent")
                 
         except Exception as e:
             logger.error(f"❌ Channel monitoring error: {e}")
@@ -331,8 +288,7 @@ class Keyboards:
     @staticmethod
     def main_menu():
         return ReplyKeyboardMarkup([
-            [KeyboardButton("🌍 Weather"), KeyboardButton("💰 Crypto")],
-            [KeyboardButton("📰 News"), KeyboardButton("🎵 Music")],
+            [KeyboardButton("🌍 Weather"), KeyboardButton("🎵 Music")],
             [KeyboardButton("😂 Fun"), KeyboardButton("🛠️ Tools")],
             [KeyboardButton("👑 Admin")]
         ], resize_keyboard=True)
@@ -353,20 +309,10 @@ class Keyboards:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast"),
              InlineKeyboardButton("📊 Stats", callback_data="admin_stats")],
-            [InlineKeyboardButton("⚙️ Settings", callback_data="admin_settings"),
-             InlineKeyboardButton("🛡️ Moderation", callback_data="admin_moderation")],
-            [InlineKeyboardButton("🔔 Channel Check", callback_data="admin_channel"),
-             InlineKeyboardButton("🔄 Auto Messages", callback_data="admin_auto")],
-            [InlineKeyboardButton("🔙 Main Menu", callback_data="back_main")]
-        ])
-
-    @staticmethod
-    def broadcast_types():
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton("📝 Text", callback_data="broadcast_text"),
-             InlineKeyboardButton("📊 Poll", callback_data="broadcast_poll")],
-            [InlineKeyboardButton("🎵 Song Alert", callback_data="broadcast_song"),
-             InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            [InlineKeyboardButton("🛡️ Moderation", callback_data="admin_moderation"),
+             InlineKeyboardButton("🔔 Channel Check", callback_data="admin_channel")],
+            [InlineKeyboardButton("🔄 Auto Message", callback_data="admin_auto"),
+             InlineKeyboardButton("🔙 Main Menu", callback_data="back_main")]
         ])
 
     @staticmethod
@@ -380,22 +326,17 @@ class Messages:
     WELCOME = """
 ✨ *Welcome to Alita Assistant!* 🤖
 
-I'm your all-in-one companion with:
-
 🌍 *Real-time Features*
-• Weather updates • Crypto prices • News
+• Weather updates • Song suggestions
 
 🎵 *Entertainment*
-• Song suggestions • Jokes • Quotes
-• Music alerts • Fun facts
+• Jokes • Quotes • Music • Facts
 
 🛡️ *Group Management*
 • Auto-moderation • Welcome messages
-• Rule enforcement • Spam protection
 
 👑 *Admin Tools*
 • Broadcast messages • User statistics
-• Channel monitoring • Auto messaging
 
 *Use the menu below to get started!* 🚀
 """
@@ -403,20 +344,17 @@ I'm your all-in-one companion with:
     HELP = """
 📖 *Alita Assistant Guide*
 
-*Basic Commands:*
+*Commands:*
 /start - Start the bot
 /help - Show this guide
 /status - Check bot status
 /rules - Show group rules
 
 *Features:*
-• Weather updates for any city
-• Cryptocurrency prices
+• Weather updates
 • Entertainment (jokes, quotes, songs)
 • Group moderation
 • Admin tools
-
-*Need help?* Contact the admin!
 """
 
 # ==================== CORE HANDLERS ====================
@@ -424,7 +362,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = str(user.id)
     
-    # Initialize user data
     if user_id not in user_data:
         user_data[user_id] = {
             "first_seen": datetime.now().isoformat(),
@@ -460,7 +397,6 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👥 Users: *{user_count}*
 💬 Groups: *{group_count}*
 🕐 Uptime: *24/7 Active*
-🔧 Version: *3.0 Professional*
 
 🚀 *Services:*
 • Weather: ✅ Live
@@ -479,13 +415,7 @@ async def rules_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 1. ✅ Be respectful to all members
 2. ✅ No spam or flooding
 3. ✅ No inappropriate language
-4. ✅ No excessive self-promotion
-5. ✅ Keep discussions relevant
-
-🛡️ *Moderation:*
-• Violations may result in warnings
-• Repeated issues may lead to mutes/bans
-• Contact admins for help
+4. ✅ Keep discussions relevant
 
 Let's keep this community positive! 🌟
 """
@@ -524,32 +454,6 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🛠️ Tools":
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await update.message.reply_text(f"🕐 Current Time: `{current_time}`", parse_mode='Markdown')
-    
-    elif text == "💰 Crypto":
-        crypto_text = """
-💰 *Crypto Prices* (Simulated)
-
-₿ Bitcoin: $45,230
-🔷 Ethereum: $3,200  
-🐕 Dogecoin: $0.15
-💎 Cardano: $1.25
-
-*Note:* Real-time prices require API key
-"""
-        await update.message.reply_text(crypto_text, parse_mode='Markdown')
-    
-    elif text == "📰 News":
-        news_text = """
-📰 *Latest News* (Simulated)
-
-• Technology advancements in AI
-• Global climate initiatives
-• Sports championships updates
-• Entertainment industry news
-
-*Note:* Real news requires API key
-"""
-        await update.message.reply_text(news_text, parse_mode='Markdown')
 
 # ==================== BUTTON HANDLER ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -598,20 +502,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔄 Total Messages: {sum(u.get('message_count', 0) for u in user_data.values())}
 
 🛡️ Moderation: Active
-🔔 Auto Messages: Enabled
-📢 Broadcasting: Ready
+🔔 Auto Messages: Ready
+📢 Broadcasting: Enabled
 """
             await query.edit_message_text(stats_text, reply_markup=Keyboards.admin_panel())
         
         elif data == "admin_broadcast":
-            await start_broadcast(update, context)
+            # Simple broadcast implementation
+            success_count = 0
+            for user_id in user_data.keys():
+                try:
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text="📢 *Broadcast from Admin*\n\nThis is a test broadcast message! 🌟"
+                    )
+                    success_count += 1
+                    await asyncio.sleep(0.1)
+                except Exception:
+                    continue
+            
+            await query.edit_message_text(
+                f"✅ Broadcast sent to {success_count} users!",
+                reply_markup=Keyboards.admin_panel()
+            )
         
         elif data == "admin_channel":
             await ChannelMonitor.check_channel_activity(context)
             await query.edit_message_text("✅ Channel check completed!", reply_markup=Keyboards.admin_panel())
         
         elif data == "admin_auto":
-            # Test auto message
             await AutoMessaging.send_auto_message(context, update.effective_chat.id)
             await query.edit_message_text("✅ Auto message sent!", reply_markup=Keyboards.admin_panel())
         
@@ -635,52 +554,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=Keyboards.back_only()
         )
 
-# ==================== BROADCAST SYSTEM ====================
-async def start_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.edit_message_text(
-        "📢 Choose broadcast type:",
-        reply_markup=Keyboards.broadcast_types()
-    )
-    return BROADCAST_TYPE
-
-async def handle_broadcast_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    context.user_data['broadcast_type'] = query.data.replace('broadcast_', '')
-    
-    await query.edit_message_text("📝 Enter your broadcast message:")
-    return BROADCAST_CONTENT
-
-async def handle_broadcast_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['broadcast_content'] = update.message.text
-    
-    # Send broadcast immediately (simplified)
-    success_count = 0
-    for user_id in user_data.keys():
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"📢 Broadcast:\n\n{update.message.text}"
-            )
-            success_count += 1
-            await asyncio.sleep(0.1)
-        except Exception:
-            continue
-    
-    await update.message.reply_text(f"✅ Broadcast sent to {success_count} users!")
-    return ConversationHandler.END
-
-async def cancel_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ Broadcast cancelled.")
-    return ConversationHandler.END
-
 # ==================== MESSAGE HANDLER ====================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
     
     user_id = str(update.effective_user.id)
-    chat_id = str(update.effective_chat.id)
     text = update.message.text or ""
     
     # Update user data
@@ -698,7 +577,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Auto-moderation in groups
     if update.effective_chat.type in ["group", "supergroup"]:
-        violation = ModerationSystem.check_violation(text, user_id, chat_id)
+        violation = ModerationSystem.check_violation(text, user_id)
         if violation:
             await ModerationSystem.take_action(update, context, violation, user_id)
             return
@@ -739,7 +618,7 @@ async def group_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             await update.message.reply_text(
                 "🤖 Thanks for adding Alita Assistant!\n\n"
-                "I provide:\n• Auto-moderation\n• Entertainment\n• Utilities\n• Admin tools\n\n"
+                "I provide:\n• Auto-moderation\n• Entertainment\n• Utilities\n\n"
                 "Use /help to get started! 🚀"
             )
         else:
@@ -759,30 +638,23 @@ Enjoy your stay! 🌟
 """
             await update.message.reply_text(welcome_msg, parse_mode='Markdown')
 
-# ==================== SCHEDULED TASKS ====================
-async def scheduled_auto_messages(context: ContextTypes.DEFAULT_TYPE):
-    """Send automatic messages to all groups"""
-    for group_id in group_data.keys():
-        try:
-            await AutoMessaging.send_auto_message(context, group_id)
-        except Exception as e:
-            logger.error(f"Failed auto message to {group_id}: {e}")
-
-async def scheduled_channel_check(context: ContextTypes.DEFAULT_TYPE):
-    """Check channel activity regularly"""
-    await ChannelMonitor.check_channel_activity(context)
-
 # ==================== ERROR HANDLER ====================
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Exception: {context.error}")
+
+# ==================== MANUAL SCHEDULING ====================
+async def manual_scheduler(context: ContextTypes.DEFAULT_TYPE):
+    """Manual scheduling without JobQueue"""
     try:
-        if update and update.effective_chat:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="❌ An error occurred. Please try again later."
-            )
-    except Exception:
-        pass
+        # Send auto messages to all groups
+        for group_id in group_data.keys():
+            await AutoMessaging.send_auto_message(context, group_id)
+        
+        # Check channel activity
+        await ChannelMonitor.check_channel_activity(context)
+        
+    except Exception as e:
+        logger.error(f"Scheduler error: {e}")
 
 # ==================== MAIN APPLICATION ====================
 def main():
@@ -792,28 +664,17 @@ def main():
         DataManager.save_data(USER_FILE, user_data)
         DataManager.save_data(GROUP_FILE, group_data)
         DataManager.save_data(SETTINGS_FILE, bot_settings)
+        DataManager.save_data(CHANNEL_FILE, channel_data)
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Create application
+    # Create application WITHOUT JobQueue
     application = Application.builder().token(TOKEN).build()
     
     # Add error handler
     application.add_error_handler(error_handler)
-    
-    # Broadcast conversation handler
-    broadcast_conv = ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_broadcast, pattern='^admin_broadcast$')],
-        states={
-            BROADCAST_TYPE: [CallbackQueryHandler(handle_broadcast_type, pattern='^broadcast_')],
-            BROADCAST_CONTENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast_content)],
-            BROADCAST_CONFIRM: [CallbackQueryHandler(handle_broadcast_content, pattern='^confirm_')]
-        },
-        fallbacks=[CommandHandler('cancel', cancel_broadcast)]
-    )
-    application.add_handler(broadcast_conv)
     
     # Command handlers
     application.add_handler(CommandHandler("start", start_command))
@@ -830,11 +691,6 @@ def main():
     
     # Group handlers
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, group_welcome))
-    
-    # Scheduled jobs
-    job_queue = application.job_queue
-    job_queue.run_repeating(scheduled_auto_messages, interval=3600, first=10)  # Every hour
-    job_queue.run_repeating(scheduled_channel_check, interval=1800, first=15)  # Every 30 minutes
     
     # Set bot commands
     async def post_init(application: Application):
@@ -864,6 +720,7 @@ def main():
         DataManager.save_data(USER_FILE, user_data)
         DataManager.save_data(GROUP_FILE, group_data)
         DataManager.save_data(SETTINGS_FILE, bot_settings)
+        DataManager.save_data(CHANNEL_FILE, channel_data)
         sys.exit(1)
 
 if __name__ == "__main__":
