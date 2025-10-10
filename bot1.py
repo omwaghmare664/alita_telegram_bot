@@ -117,6 +117,39 @@ async def tip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = "Specify a language. Example: /tip python"
     await update.message.reply_text(response)
 
+async def joke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    jokes = [
+        "Why do programmers prefer dark mode? Because light attracts bugs!",
+        "Why do Java developers wear glasses? Because they can't C#!",
+        "There are only 10 types of people in the world: those who understand binary and those who don't.",
+        "Why was the JavaScript developer sad? Because he didn't Node how to Express himself!"
+    ]
+    joke = random.choice(jokes)
+    await update.message.reply_text(joke)
+
+async def quote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    quotes = [
+        "First, solve the problem. Then, write the code. - John Johnson",
+        "Any fool can write code that a computer can understand. Good programmers write code that humans can understand. - Martin Fowler",
+        "The only way to learn a new programming language is by writing programs in it. - Dennis Ritchie",
+        "Programming isn't about what you know; it's about what you can figure out. - Chris Pine"
+    ]
+    quote = random.choice(quotes)
+    await update.message.reply_text(quote)
+
+async def tools_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tools_info = (
+        "Popular Coding Tools:\n\n"
+        "• VS Code - Lightweight but powerful code editor\n"
+        "• Git & GitHub - Version control and collaboration\n"
+        "• Docker - Containerization platform\n"
+        "• Postman - API testing tool\n"
+        "• PyCharm - Python IDE\n"
+        "• Chrome DevTools - Web development tools\n"
+        "• Jupyter Notebook - Interactive computing"
+    )
+    await update.message.reply_text(tools_info)
+
 async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     response = "I didn't understand that. Provide more details."
@@ -140,11 +173,18 @@ def main():
     app.add_handler(CommandHandler("send", send_command))
     app.add_handler(CommandHandler("suggest", suggest_command))
     app.add_handler(CommandHandler("tip", tip_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.BOT, code_handler))
+    app.add_handler(CommandHandler("joke", joke_command))
+    app.add_handler(CommandHandler("quote", quote_command))
+    app.add_handler(CommandHandler("tools", tools_command))
+    
+    # Message handler - removed the ~filters.BOT since it's not needed
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, code_handler))
+    
+    # Unknown command handler
     app.add_handler(MessageHandler(filters.COMMAND, unknown_command))
 
     print("Bot is running...")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
