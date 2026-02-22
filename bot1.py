@@ -671,11 +671,11 @@ async def toggle_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     status = "enabled" if settings[chat_id] else "disabled"
     await update.message.reply_text(f"✅ Auto-responses {status} for this group!")
-
-# ==================== MAIN MENU HANDLER ====================
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle all text messages"""
     text = update.message.text
     
+    # Check for menu buttons first
     if text == "🌍 Weather":
         weather = await FreeAPIServices.get_weather()
         await update.message.reply_text(weather)
@@ -705,6 +705,43 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🛠️ Tools":
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await update.message.reply_text(f"🕐 Current Time: `{current_time}`", parse_mode='Markdown')
+    
+    else:
+        # Handle general messages here (copy your existing handle_message code)
+        user_id = str(update.effective_user.id)
+        
+        # Update user data
+        if user_id not in user_data:
+            user_data[user_id] = {
+                "first_seen": datetime.now().isoformat(),
+                "username": update.effective_user.username,
+                "first_name": update.effective_user.first_name,
+                "message_count": 0,
+                "last_seen": datetime.now().isoformat()
+            }
+        
+        user_data[user_id]["message_count"] = user_data[user_id].get("message_count", 0) + 1
+        user_data[user_id]["last_seen"] = datetime.now().isoformat()
+        
+        # Smart replies
+        responses = {
+            'hello': "👋 Hello! How can I help you today?",
+            'hi': "👋 Hi there! Ready to explore some features?",
+            'thanks': "😊 You're welcome!",
+            'thank you': "😊 Happy to help!",
+            'how are you': "🤖 I'm running perfectly!",
+            'bye': "👋 Goodbye! Come back anytime!"
+        }
+        
+        for key, response in responses.items():
+            if key in text.lower():
+                await update.message.reply_text(response)
+                break
+        
+        DataManager.save_data(USER_FILE, user_data)
+
+# Then in main(), keep only ONE handler:
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu))
 
 # ==================== BUTTON HANDLER ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1023,4 +1060,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
