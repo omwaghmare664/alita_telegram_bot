@@ -33,9 +33,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Get token from environment variable
 TOKEN: Final = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("❌ BOT_TOKEN environment variable not set!")
+    logger.error("❌ BOT_TOKEN environment variable not set!")
+    # Don't raise error immediately, allow for local testing
+    TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your actual token for local testing
 
 BOT_USERNAME: Final = '@alitacode_bot'
 ADMIN_ID: Final = 7327016053
@@ -70,6 +73,11 @@ CHANNEL_FILE = "channel.json"
 SCHEDULE_FILE = "schedule.json"
 INTERVALS_FILE = "group_intervals.json"
 AUTO_SETTINGS_FILE = "auto_settings.json"
+
+# Create empty files if they don't exist
+for file in [USER_FILE, GROUP_FILE, SETTINGS_FILE, CHANNEL_FILE, SCHEDULE_FILE, INTERVALS_FILE, AUTO_SETTINGS_FILE]:
+    if not os.path.exists(file):
+        DataManager.save_data(file, {})
 
 user_data = DataManager.load_data(USER_FILE, {})
 group_data = DataManager.load_data(GROUP_FILE, {})
@@ -143,7 +151,8 @@ class FreeAPIServices:
                 async with session.get(f"http://wttr.in/{city}?format=%C+%t+%h+%w", timeout=10) as response:
                     if response.status == 200:
                         return f"🌤️ Weather in {city.title()}: {await response.text()}"
-        except Exception:
+        except Exception as e:
+            logger.error(f"Weather API error: {e}")
             return f"🌤️ Weather for {city.title()}: ⛅ 25°C 💧 60% 🌬️ 10km/h"
 
     @staticmethod
@@ -195,21 +204,14 @@ class FreeAPIServices:
 
     @staticmethod
     async def get_song_suggestion() -> str:
-        hindi_songs = [
+        songs = [
             "🎵 Kesariya - Brahmāstra",
             "🎵 Apna Bana Le - Bhediya", 
             "🎵 Besharam Rang - Pathaan",
-            "🎵 Tere Vaaste - Zara Hatke Zara Bachke",
-            "🎵 Chaleya - Jawan"
-        ]
-        english_songs = [
             "🎵 Flowers - Miley Cyrus",
             "🎵 Anti-Hero - Taylor Swift",
-            "🎵 As It Was - Harry Styles",
-            "🎵 Unholy - Sam Smith",
-            "🎵 Calm Down - Rema"
+            "🎵 As It Was - Harry Styles"
         ]
-        songs = random.choice([hindi_songs, english_songs])
         return f"🎶 Song Suggestion: {random.choice(songs)}"
 
 # ==================== ENHANCED AUTO MESSAGING ====================
@@ -917,7 +919,25 @@ async def start_periodic_messages(application: Application):
     asyncio.create_task(periodic_wrapper())
     logger.info("✅ Periodic messaging task started")
 
+# ==================== HEALTH CHECK ENDPOINT (for Render) ====================
+async def health_check(request):
+    """Simple health check endpoint for Render"""
+    return aiohttp.web.Response(text="OK")
+
 # ==================== MAIN APPLICATION ====================
+async def run_web_server():
+    """Run a simple web server for health checks (required by Render)"""
+    app = aiohttp.web.Application()
+    app.router.add_get('/', health_check)
+    app.router.add_get('/health', health_check)
+    
+    port = int(os.environ.get("PORT", 10000))
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    logger.info(f"✅ Health check server running on port {port}")
+
 def main():
     # Setup signal handlers
     def signal_handler(signum, frame):
@@ -944,4 +964,60 @@ def main():
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("rules", rules_command))
     application.add_handler(CommandHandler("auto", trigger_auto_response))
-    application.add_handler
+    application.add_handler(CommandHandler("setinterval", set_auto_interval))
+    application.add_handler(CommandHandler("toggleauto", toggle_auto))
+    
+    # Button handlers
+    application.add_handler(CallbackQueryHandler(button_handler))
+    
+    # Message handlers - IMPORTANT: Order matters!
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Group handlers
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, group_welcome))
+    
+    # Set bot commands
+    async def post_init(application: Application):
+        await application.bot.set_my_commands([
+            BotCommand("start", "Start Alita Assistant"),
+            BotCommand("help", "Get help guide"),
+            BotCommand("status", "Check bot status"),
+            BotCommand("rules", "Show group rules"),
+            BotCommand("auto", "Trigger auto response"),
+            BotCommand("setinterval", "Set auto-response interval"),
+            BotCommand("toggleauto", "Toggle auto-responses")
+        ])
+        logger.info("✅ Bot commands configured")
+        
+        # Start periodic messages
+        await start_periodic_messages(application)
+        
+        # Start health check server (required for Render)
+        await run_web_server()
+    
+    application.post_init = post_init
+    
+    # Startup
+    logger.info("🚀 Starting Alita Assistant...")
+    logger.info(f"👑 Admin: {ADMIN_ID}")
+    logger.info(f"👥 Users: {len(user_data)}")
+    logger.info(f"💬 Groups: {len(group_data)}")
+    
+    try:
+        # Run the bot
+        application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True
+        )
+    except Exception as e:
+        logger.error(f"❌ Bot failed: {e}")
+        DataManager.save_data(USER_FILE, user_data)
+        DataManager.save_data(GROUP_FILE, group_data)
+        DataManager.save_data(SETTINGS_FILE, bot_settings)
+        DataManager.save_data(CHANNEL_FILE, channel_data)
+        DataManager.save_data(SCHEDULE_FILE, scheduler.last_message_time)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
