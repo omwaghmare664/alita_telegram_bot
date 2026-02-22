@@ -33,15 +33,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Get token from environment variable
-TOKEN: Final = os.getenv("BOT_TOKEN")
-if not TOKEN:
-    logger.error("❌ BOT_TOKEN environment variable not set!")
-    # Don't raise error immediately, allow for local testing
-    TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your actual token for local testing
-
-BOT_USERNAME: Final = '@alitacode_bot'
-ADMIN_ID: Final = 7327016053
+# ==================== TOKENS AND IDs ====================
+BOT_TOKEN = "8168577329:AAFgYEHmIe-SDuRL3tqt6rx1MtAnJprSbRc"  # Your bot token
+BOT_USERNAME = '@alitacode_bot'
+ADMIN_ID = 7327016053
 
 # ==================== DATA MANAGEMENT ====================
 class DataManager:
@@ -94,18 +89,17 @@ channel_data = DataManager.load_data(CHANNEL_FILE, {
 # ==================== SCHEDULED MESSAGES SYSTEM ====================
 class ScheduledMessages:
     def __init__(self):
-        self.last_message_time = {}  # Track last message time per chat
+        self.last_message_time = {}
         self.message_intervals = {
-            "hourly": 3600,  # 1 hour in seconds
-            "every_3_hours": 10800,  # 3 hours
-            "every_6_hours": 21600,  # 6 hours
-            "daily": 86400,  # 24 hours
-            "weekly": 604800  # 7 days
+            "hourly": 3600,
+            "every_3_hours": 10800,
+            "every_6_hours": 21600,
+            "daily": 86400,
+            "weekly": 604800
         }
         self.load_schedule_data()
     
     def should_send_message(self, chat_id: str, interval: str = "every_3_hours") -> bool:
-        """Check if enough time has passed to send another message"""
         current_time = datetime.now()
         
         if chat_id not in self.last_message_time:
@@ -118,20 +112,16 @@ class ScheduledMessages:
         return time_diff >= self.message_intervals.get(interval, 10800)
     
     def update_last_message(self, chat_id: str):
-        """Update the last message time for a chat"""
         self.last_message_time[chat_id] = datetime.now()
-        # Save to file for persistence
         self.save_schedule_data()
     
     def save_schedule_data(self):
-        """Save scheduling data to file"""
         schedule_data = {}
         for chat_id, timestamp in self.last_message_time.items():
             schedule_data[chat_id] = timestamp.isoformat()
         DataManager.save_data(SCHEDULE_FILE, schedule_data)
     
     def load_schedule_data(self):
-        """Load scheduling data from file"""
         data = DataManager.load_data(SCHEDULE_FILE, {})
         for chat_id, timestamp_str in data.items():
             try:
@@ -162,7 +152,10 @@ class FreeAPIServices:
             "What do you call a fake noodle? An impasta!",
             "Why did the scarecrow win an award? He was outstanding in his field!",
             "Why don't eggs tell jokes? They'd crack each other up!",
-            "What do you call a sleeping bull? A bulldozer!"
+            "What do you call a sleeping bull? A bulldozer!",
+            "Why did the math book look sad? Because it had too many problems!",
+            "What do you call a bear with no teeth? A gummy bear!",
+            "Why don't skeletons fight each other? They don't have the guts!"
         ]
         return f"😂 Joke: {random.choice(jokes)}"
 
@@ -173,7 +166,9 @@ class FreeAPIServices:
             "Innovation distinguishes between a leader and a follower. - Steve Jobs",
             "Your time is limited, don't waste it living someone else's life. - Steve Jobs",
             "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt",
-            "Life is what happens when you're busy making other plans. - John Lennon"
+            "Life is what happens when you're busy making other plans. - John Lennon",
+            "Success is not final, failure is not fatal: it is the courage to continue that counts. - Winston Churchill",
+            "Believe you can and you're halfway there. - Theodore Roosevelt"
         ]
         return f"💫 Quote: {random.choice(quotes)}"
 
@@ -187,7 +182,9 @@ class FreeAPIServices:
             "Practice gratitude daily.",
             "Always be kind to others.",
             "Don't be afraid to ask for help.",
-            "Take breaks when you need them."
+            "Take breaks when you need them.",
+            "Save money for rainy days.",
+            "Exercise regularly for good health."
         ]
         return f"🤔 Advice: {random.choice(advice_list)}"
 
@@ -198,7 +195,10 @@ class FreeAPIServices:
             "Octopuses have three hearts and blue blood.",
             "A day on Venus is longer than a year on Venus.",
             "Bananas are berries, but strawberries aren't.",
-            "The shortest war in history lasted only 38 minutes."
+            "The shortest war in history lasted only 38 minutes.",
+            "A group of flamingos is called a 'flamboyance'.",
+            "The Eiffel Tower can be 15 cm taller during the summer.",
+            "Humans share 60% of their DNA with bananas."
         ]
         return f"📚 Fact: {random.choice(facts)}"
 
@@ -210,14 +210,17 @@ class FreeAPIServices:
             "🎵 Besharam Rang - Pathaan",
             "🎵 Flowers - Miley Cyrus",
             "🎵 Anti-Hero - Taylor Swift",
-            "🎵 As It Was - Harry Styles"
+            "🎵 As It Was - Harry Styles",
+            "🎵 Calm Down - Rema",
+            "🎵 Pasoori - Coke Studio",
+            "🎵 Kurchi Madathapetti - Guntur Kaaram"
         ]
         return f"🎶 Song Suggestion: {random.choice(songs)}"
 
-# ==================== ENHANCED AUTO MESSAGING ====================
+# ==================== AUTO MESSAGING ====================
 class AutoMessaging:
     @staticmethod
-    def get_greeting():
+    def get_time_based_greeting():
         hour = datetime.now().hour
         if 5 <= hour < 12:
             return "🌅 Good Morning! Have a wonderful day ahead!"
@@ -229,78 +232,138 @@ class AutoMessaging:
             return "🌙 Good Night! Sleep well and sweet dreams!"
 
     @staticmethod
+    def get_random_greeting():
+        greetings = [
+            "Hello everyone! 👋",
+            "Hi there! 🌟",
+            "Hey guys! 💫",
+            "Greetings everyone! ✨",
+            "Namaste! 🙏",
+            "Vanakkam! 🤝",
+            "What's up everyone! 🚀"
+        ]
+        return random.choice(greetings)
+
+    @staticmethod
     def get_festival_wish():
         festivals = {
             "01-01": "🎉 Happy New Year! May this year bring you joy and success!",
+            "01-14": "🎋 Happy Pongal/Makar Sankranti! Harvest festival greetings!",
+            "01-26": "🇮🇳 Happy Republic Day! Jai Hind!",
             "02-14": "💝 Happy Valentine's Day! Spread love and kindness!",
             "03-08": "🌸 Happy Holi! May your life be filled with vibrant colors!",
-            "10-02": "🪔 Happy Gandhi Jayanti! Be the change you wish to see!",
-            "10-24": "🎃 Happy Diwali! May light triumph over darkness!",
-            "12-25": "🎄 Merry Christmas! Peace, love, and joy to you!"
+            "03-25": "🎊 Happy Gudi Padwa/Ugadi! New Year greetings!",
+            "04-14": "🎋 Happy Baisakhi/Vishu! May your harvest be abundant!",
+            "04-21": "☪️ Eid Mubarak! May your prayers be answered!",
+            "08-15": "🇮🇳 Happy Independence Day! Jai Hind!",
+            "08-26": "🎉 Happy Janmashtami! May Lord Krishna bless you!",
+            "09-07": "🎊 Happy Ganesh Chaturthi! Ganpati Bappa Morya!",
+            "10-02": "🕊️ Happy Gandhi Jayanti! Be the change!",
+            "10-24": "🪔 Happy Diwali! May light triumph over darkness!",
+            "11-01": "🎊 Happy Kannada Rajyotsava! Karnataka formation day!",
+            "11-14": "🎈 Happy Children's Day! Stay playful!",
+            "12-25": "🎄 Merry Christmas! Peace and joy to you!"
         }
         today = datetime.now().strftime("%m-%d")
-        return festivals.get(today, "🌟 Have a wonderful day! Spread positivity!")
+        return festivals.get(today, None)
 
     @staticmethod
     def get_motivation():
         motivations = [
-            "💪 *Motivation*: The only way to do great work is to love what you do.",
-            "✨ *Success Tip*: Small progress is still progress. Keep going!",
-            "🌟 *Daily Inspiration*: Your limitation—it's only your imagination.",
-            "🎯 *Focus*: Push yourself, because no one else is going to do it for you.",
-            "🌈 *Mindset*: Great things never come from comfort zones."
+            "💪 The only way to do great work is to love what you do.",
+            "✨ Small progress is still progress. Keep going!",
+            "🌟 Your limitation—it's only your imagination.",
+            "🎯 Push yourself, because no one else is going to do it for you.",
+            "🌈 Great things never come from comfort zones.",
+            "🚀 Don't watch the clock; do what it does. Keep going.",
+            "💡 Every expert was once a beginner.",
+            "⭐ The future depends on what you do today.",
+            "🔥 Success is not final, failure is not fatal."
         ]
-        return random.choice(motivations)
+        return f"💪 *Motivation*: {random.choice(motivations)}"
     
     @staticmethod
-    def get_tip():
+    def get_daily_tip():
         tips = [
-            "💡 *Productivity Tip*: Take regular breaks to maintain focus.",
-            "🛡️ *Security Tip*: Use strong, unique passwords for all accounts.",
-            "💪 *Health Tip*: Drink water first thing in the morning.",
-            "🧠 *Learning Tip*: Teach others to reinforce your own knowledge.",
-            "💰 *Finance Tip*: Save at least 20% of your income."
+            "Take regular breaks to maintain focus.",
+            "Use strong, unique passwords for all accounts.",
+            "Drink water first thing in the morning.",
+            "Teach others to reinforce your own knowledge.",
+            "Save at least 20% of your income.",
+            "Update your apps regularly for security.",
+            "Get 7-8 hours of sleep for better health.",
+            "Take 5 minutes daily to meditate.",
+            "Read for 30 minutes every day.",
+            "Exercise at least 3 times a week."
         ]
-        return random.choice(tips)
+        return f"💡 *Tip*: {random.choice(tips)}"
     
     @staticmethod
     async def get_news_headline():
         headlines = [
-            "📰 *Tech News*: AI continues to revolutionize industries worldwide!",
-            "🌍 *World News*: Global cooperation on climate change intensifies.",
-            "🚀 *Space News*: New discoveries about Mars captured public imagination.",
-            "💻 *Digital*: Cybersecurity becomes top priority for organizations.",
-            "🎮 *Gaming*: New game releases break previous sales records."
+            "AI continues to revolutionize industries worldwide!",
+            "Global cooperation on climate change intensifies.",
+            "New discoveries about Mars captured public imagination.",
+            "Cybersecurity becomes top priority for organizations.",
+            "New game releases break previous sales records.",
+            "5G networks expanding to more cities.",
+            "New breakthroughs in artificial intelligence announced.",
+            "Electric vehicle sales hit record high.",
+            "Space tourism becomes reality for civilians."
         ]
-        return random.choice(headlines)
+        return f"📰 *News*: {random.choice(headlines)}"
     
     @staticmethod
     async def get_interesting_fact():
         facts = [
-            "🐘 *Animal Fact*: Elephants are the only mammals that can't jump.",
-            "🌊 *Ocean Fact*: More people have been to the Moon than the Mariana Trench.",
-            "🧠 *Brain Fact*: Your brain generates enough electricity to power a lightbulb.",
-            "🌍 *Earth Fact*: Antarctica is the largest desert in the world.",
-            "👁️ *Body Fact*: Your eyes blink about 20 times per minute."
+            "Elephants are the only mammals that can't jump.",
+            "More people have been to the Moon than the Mariana Trench.",
+            "Your brain generates enough electricity to power a lightbulb.",
+            "Antarctica is the largest desert in the world.",
+            "Your eyes blink about 20 times per minute.",
+            "Bananas are berries, but strawberries aren't.",
+            "Honey never spoils. It can last 3000 years!",
+            "There are more stars than grains of sand on Earth.",
+            "Octopuses have three hearts.",
+            "A day on Venus is longer than a year on Venus."
         ]
-        return random.choice(facts)
+        return f"🔬 *Did You Know?*: {random.choice(facts)}"
+
+    @staticmethod
+    async def get_daily_quote():
+        quotes = [
+            "The best way to predict the future is to create it. - Peter Drucker",
+            "Success is not final, failure is not fatal. - Winston Churchill",
+            "Believe you can and you're halfway there. - Theodore Roosevelt",
+            "It does not matter how slowly you go as long as you do not stop. - Confucius",
+            "Everything you've ever wanted is on the other side of fear. - Unknown",
+            "The only impossible journey is the one you never begin. - Tony Robbins",
+            "What you get by achieving your goals is not as important as what you become. - Zig Ziglar"
+        ]
+        return f"💭 *Quote*: {random.choice(quotes)}"
 
     @staticmethod
     async def get_random_content():
         """Get random content from various categories"""
         content_options = [
-            AutoMessaging.get_greeting,
-            AutoMessaging.get_festival_wish,
+            AutoMessaging.get_time_based_greeting,
+            AutoMessaging.get_random_greeting,
+            AutoMessaging.get_motivation,
+            AutoMessaging.get_daily_tip,
             FreeAPIServices.get_quote,
             FreeAPIServices.get_song_suggestion,
             FreeAPIServices.get_joke,
             FreeAPIServices.get_advice,
             FreeAPIServices.get_fact,
-            AutoMessaging.get_motivation,
-            AutoMessaging.get_tip,
             AutoMessaging.get_news_headline,
-            AutoMessaging.get_interesting_fact
+            AutoMessaging.get_interesting_fact,
+            AutoMessaging.get_daily_quote
         ]
+        
+        # Check for festival wishes
+        festival_wish = AutoMessaging.get_festival_wish()
+        if festival_wish:
+            return festival_wish
         
         content_func = random.choice(content_options)
         if asyncio.iscoroutinefunction(content_func):
@@ -308,59 +371,80 @@ class AutoMessaging:
         return content_func()
 
     @staticmethod
-    async def send_auto_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    async def send_auto_message(context, chat_id: int):
         try:
             content = await AutoMessaging.get_random_content()
             
-            formatted_content = f"""
+            # Random formatting templates
+            templates = [
+                f"""
 🤖 *Alita Assistant Update*
 
 {content}
 
 ---
-🕐 {datetime.now().strftime('%I:%M %p')} • Use /help for more features!
+🕐 {datetime.now().strftime('%I:%M %p')} • Use /help
+""",
+                f"""
+🌟 *Daily Update* 🌟
+
+{content}
+
+━━━━━━━━━━━━━━━
+🕒 {datetime.now().strftime('%I:%M %p')}
+""",
+                f"""
+✨ *Hello Everyone!* ✨
+
+{content}
+
+📌 {datetime.now().strftime('%d %B %Y')}
 """
+            ]
+            
+            formatted_content = random.choice(templates)
+            
             await context.bot.send_message(
                 chat_id=chat_id, 
                 text=formatted_content,
                 parse_mode='Markdown'
             )
             logger.info(f"✅ Auto message sent to {chat_id}")
+            return True
         except Exception as e:
             logger.error(f"❌ Failed to send auto message: {e}")
+            return False
 
 # ==================== PERIODIC MESSAGE FUNCTION ====================
-async def periodic_group_messages(context: ContextTypes.DEFAULT_TYPE):
+async def periodic_group_messages(context):
     """Send periodic messages to all groups"""
     try:
-        # Get all groups from your data
         groups = list(group_data.keys())
         
-        # Load auto settings
+        if not groups:
+            backup_groups = DataManager.load_data("groups_backup.json", [])
+            groups = backup_groups
+        
         auto_settings = DataManager.load_data(AUTO_SETTINGS_FILE, {})
         group_intervals = DataManager.load_data(INTERVALS_FILE, {})
         
         for group_id in groups:
             try:
-                # Check if auto-responses are enabled for this group
                 if not auto_settings.get(str(group_id), True):
                     continue
                 
-                # Get interval for this group (default 3 hours)
                 interval_hours = group_intervals.get(str(group_id), 3)
                 interval_seconds = interval_hours * 3600
                 
-                # Check if we should send a message
                 current_time = datetime.now()
                 last_time = scheduler.last_message_time.get(str(group_id))
                 
                 if last_time is None or (current_time - last_time).total_seconds() >= interval_seconds:
-                    # Send message
-                    await AutoMessaging.send_auto_message(context, int(group_id))
-                    scheduler.update_last_message(str(group_id))
+                    success = await AutoMessaging.send_auto_message(context, int(group_id))
+                    if success:
+                        scheduler.update_last_message(str(group_id))
                     
-                    # Small delay to avoid rate limits
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(2)
                     
             except Exception as e:
                 logger.error(f"❌ Failed to process group {group_id}: {e}")
@@ -371,7 +455,7 @@ async def periodic_group_messages(context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== MODERATION SYSTEM ====================
 class ModerationSystem:
-    BAD_WORDS = ["fuck", "shit", "asshole", "bastard", "bitch", "damn", "hell"]
+    BAD_WORDS = ["fuck", "shit", "asshole", "bastard", "bitch", "damn", "hell", "fck", "f*ck", "bch", "bsdk", "mc", "bc"]
     SPAM_LIMIT = 5
     
     @staticmethod
@@ -383,10 +467,10 @@ class ModerationSystem:
         if user_msg_count > ModerationSystem.SPAM_LIMIT:
             return "spamming"
         
-        if len(message_text) > 100:
+        if len(message_text) > 500:
             return "flooding"
         
-        if len(re.findall(r'http[s]?://', message_text)) > 3:
+        if len(re.findall(r'http[s]?://', message_text)) > 5:
             return "link_spam"
         
         return ""
@@ -395,10 +479,10 @@ class ModerationSystem:
     async def take_action(update: Update, context: ContextTypes.DEFAULT_TYPE, violation: str, user_id: str):
         user = update.effective_user
         actions = {
-            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language."),            
-            "spamming": ("🚫 Spam Detected", "Please avoid sending too many messages."),
-            "flooding": ("📢 Flood Warning", "Please keep messages concise."),
-            "link_spam": ("🔗 Link Spam", "Too many links detected.")
+            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language in this group."),            
+            "spamming": ("🚫 Spam Detected", "Please avoid sending too many messages quickly."),
+            "flooding": ("📢 Long Message Warning", "Please keep messages at a reasonable length."),
+            "link_spam": ("🔗 Link Spam", "Too many links detected. Please avoid link spamming.")
         }
         
         action_text, warning = actions.get(violation, ("⚠️ Rule Violation", "Please follow group rules."))
@@ -422,15 +506,17 @@ class ChannelMonitor:
             days_inactive = hours_inactive / 24
             
             if hours_inactive >= 5 or days_inactive >= 2:
+                content = await AutoMessaging.get_random_content()
                 reminder_msg = f"""
 🔔 *Channel Activity Reminder*
 
-📊 Status Report:
+📊 *Status Report:*
 • Last message: {last_message_time.strftime('%Y-%m-%d %H:%M')}
 • Hours inactive: {hours_inactive:.1f}h
 • Days inactive: {days_inactive:.1f}d
 
-💡 Suggestion: Consider posting new content!
+💡 *Suggestion:* Consider posting this:
+{content}
 """
                 await context.bot.send_message(
                     chat_id=ADMIN_ID,
@@ -454,7 +540,7 @@ class Keyboards:
         return ReplyKeyboardMarkup([
             [KeyboardButton("🌍 Weather"), KeyboardButton("🎵 Music")],
             [KeyboardButton("😂 Fun"), KeyboardButton("🛠️ Tools")],
-            [KeyboardButton("👑 Admin")]
+            [KeyboardButton("👥 Group Tools"), KeyboardButton("👑 Admin")]
         ], resize_keyboard=True)
 
     @staticmethod
@@ -465,7 +551,18 @@ class Keyboards:
             [InlineKeyboardButton("🤔 Advice", callback_data="fun_advice"),
              InlineKeyboardButton("📚 Fact", callback_data="fun_fact")],
             [InlineKeyboardButton("🎵 Song", callback_data="fun_song"),
-             InlineKeyboardButton("🔙 Back", callback_data="back_main")]
+             InlineKeyboardButton("💪 Motivation", callback_data="fun_motivation")],
+            [InlineKeyboardButton("🔙 Back", callback_data="back_main")]
+        ])
+
+    @staticmethod
+    def group_tools_menu():
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("👋 Welcome Msg", callback_data="group_welcome"),
+             InlineKeyboardButton("🛡️ Moderation", callback_data="group_mod")],
+            [InlineKeyboardButton("⏰ Auto Msg", callback_data="group_auto"),
+             InlineKeyboardButton("📊 Stats", callback_data="group_stats")],
+            [InlineKeyboardButton("🔙 Back", callback_data="back_main")]
         ])
 
     @staticmethod
@@ -474,9 +571,10 @@ class Keyboards:
             [InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast"),
              InlineKeyboardButton("📊 Stats", callback_data="admin_stats")],
             [InlineKeyboardButton("🛡️ Moderation", callback_data="admin_moderation"),
-             InlineKeyboardButton("🔔 Channel Check", callback_data="admin_channel")],
-            [InlineKeyboardButton("🔄 Auto Message", callback_data="admin_auto"),
-             InlineKeyboardButton("🔙 Main Menu", callback_data="back_main")]
+             InlineKeyboardButton("🔔 Channel", callback_data="admin_channel")],
+            [InlineKeyboardButton("🔄 Auto Msg", callback_data="admin_auto"),
+             InlineKeyboardButton("📋 Groups", callback_data="admin_groups")],
+            [InlineKeyboardButton("🔙 Main Menu", callback_data="back_main")]
         ])
 
     @staticmethod
@@ -490,40 +588,32 @@ class Messages:
     WELCOME = """
 ✨ *Welcome to Alita Assistant!* 🤖
 
-🌍 *Real-time Features*
-• Weather updates • Song suggestions
+🌍 *Weather* • 🎵 *Music* • 😂 *Fun*
+👥 *Group Tools* • 👑 *Admin*
 
-🎵 *Entertainment*
-• Jokes • Quotes • Music • Facts
+*Auto messages every 3 hours in groups!*
+*Welcome messages for new members!*
 
-🛡️ *Group Management*
-• Auto-moderation • Welcome messages
-
-👑 *Admin Tools*
-• Broadcast messages • User statistics
-• Auto-response scheduling
-
-*Use the menu below to get started!* 🚀
+Use menu below to get started! 🚀
 """
 
     HELP = """
-📖 *Alita Assistant Guide*
+📖 *Commands:*
 
-*Commands:*
-/start - Start the bot
-/help - Show this guide
-/status - Check bot status
-/rules - Show group rules
-/auto - Trigger auto response
-/setinterval - Set auto-response interval
-/toggleauto - Toggle auto-responses
+/start - Start bot
+/help - This guide
+/status - Bot status
+/rules - Group rules
+/auto - Trigger auto msg
+/setinterval - Set interval
+/toggleauto - Toggle auto
 
 *Features:*
-• Weather updates
-• Entertainment (jokes, quotes, songs)
+• Auto messages in groups
+• Welcome new members
+• Weather, Jokes, Quotes
+• Music suggestions
 • Group moderation
-• Auto responses in groups
-• Admin tools
 """
 
 # ==================== COMMAND HANDLERS ====================
@@ -559,22 +649,31 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_count = len(user_data)
     group_count = len(group_data)
     
+    active_today = 0
+    for u in user_data.values():
+        try:
+            last_seen = datetime.fromisoformat(u.get('last_seen', datetime.now().isoformat()))
+            if last_seen > datetime.now() - timedelta(days=1):
+                active_today += 1
+        except:
+            pass
+    
     status_text = f"""
 🤖 *Alita Assistant Status*
 
 ✅ *All Systems Operational*
 👥 Users: *{user_count}*
+📱 Active Today: *{active_today}*
 💬 Groups: *{group_count}*
-🕐 Uptime: *24/7 Active*
 
 🚀 *Services:*
 • Weather: ✅ Live
 • Entertainment: ✅ Ready
 • Moderation: ✅ Active
-• Broadcasting: ✅ Enabled
 • Auto-Responses: ✅ Active
+• Welcome Msgs: ✅ Enabled
 
-*Bot is running perfectly!* ✨
+*Bot running perfectly!* ✨
 """
     await update.message.reply_text(status_text, parse_mode='Markdown')
 
@@ -582,19 +681,19 @@ async def rules_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rules_text = """
 📜 *Group Rules*
 
-1. ✅ Be respectful to all members
-2. ✅ No spam or flooding
-3. ✅ No inappropriate language
-4. ✅ Keep discussions relevant
+1. ✅ Be respectful
+2. ✅ No spam
+3. ✅ No bad language
+4. ✅ No harassment
+5. ✅ Keep relevant
+6. ✅ No promo without permission
 
-Let's keep this community positive! 🌟
+*Be nice, have fun!* 🌟
 """
     await update.message.reply_text(rules_text, parse_mode='Markdown')
 
 # ==================== AUTO RESPONSE COMMANDS ====================
 async def trigger_auto_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Command to manually trigger an auto-response (/auto)"""
-    # Check if in group
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("❌ This command only works in groups!")
         return
@@ -603,7 +702,7 @@ async def trigger_auto_response(update: Update, context: ContextTypes.DEFAULT_TY
     content = await AutoMessaging.get_random_content()
     
     formatted_content = f"""
-🤖 *Auto Response Triggered*
+🤖 *Manual Auto Response*
 
 {content}
 
@@ -616,7 +715,6 @@ Requested by: {update.effective_user.first_name}
     scheduler.update_last_message(str(chat.id))
 
 async def set_auto_interval(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Set auto-response interval for the group (/setinterval [hours])"""
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("❌ This command only works in groups!")
         return
@@ -624,38 +722,37 @@ async def set_auto_interval(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     chat_id = str(chat.id)
     
-    # Parse interval
     try:
         if context.args:
             hours = float(context.args[0])
             if hours < 1:
                 await update.message.reply_text("❌ Interval must be at least 1 hour!")
                 return
+            if hours > 168:
+                await update.message.reply_text("❌ Interval cannot exceed 168 hours (1 week)!")
+                return
             
-            # Save interval for this group
             intervals = DataManager.load_data(INTERVALS_FILE, {})
             intervals[chat_id] = hours
             DataManager.save_data(INTERVALS_FILE, intervals)
             
             await update.message.reply_text(
                 f"✅ Auto-response interval set to {hours} hours!\n"
-                f"The bot will now send updates every {hours} hours."
+                f"Bot will send updates every {hours} hours."
             )
         else:
-            # Show current interval
             intervals = DataManager.load_data(INTERVALS_FILE, {})
             current = intervals.get(chat_id, 3)
             await update.message.reply_text(
-                f"📊 Current auto-response interval: {current} hours\n"
+                f"📊 Current interval: {current} hours\n"
                 f"To change: `/setinterval [hours]`\n"
-                f"Example: `/setinterval 6` for 6 hours",
+                f"Example: `/setinterval 6`",
                 parse_mode='Markdown'
             )
     except ValueError:
         await update.message.reply_text("❌ Please provide a valid number of hours!")
 
 async def toggle_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Toggle auto-responses on/off for the group (/toggleauto)"""
     if update.effective_chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("❌ This command only works in groups!")
         return
@@ -663,19 +760,21 @@ async def toggle_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     chat_id = str(chat.id)
     
-    # Toggle setting
     settings = DataManager.load_data(AUTO_SETTINGS_FILE, {})
     current = settings.get(chat_id, True)
     settings[chat_id] = not current
     DataManager.save_data(AUTO_SETTINGS_FILE, settings)
     
-    status = "enabled" if settings[chat_id] else "disabled"
+    status = "enabled ✅" if settings[chat_id] else "disabled ❌"
     await update.message.reply_text(f"✅ Auto-responses {status} for this group!")
+
+# ==================== MAIN MENU HANDLER ====================
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle all text messages"""
+    if not update.message or not update.message.text:
+        return
+    
     text = update.message.text
     
-    # Check for menu buttons first
     if text == "🌍 Weather":
         weather = await FreeAPIServices.get_weather()
         await update.message.reply_text(weather)
@@ -686,8 +785,18 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif text == "😂 Fun":
         await update.message.reply_text(
-            "🎉 *Fun Zone* - Choose entertainment:",
+            "🎉 *Fun Zone*",
             reply_markup=Keyboards.fun_menu(),
+            parse_mode='Markdown'
+        )
+    
+    elif text == "👥 Group Tools":
+        if update.effective_chat.type not in ["group", "supergroup"]:
+            await update.message.reply_text("❌ Group tools only work in groups!")
+            return
+        await update.message.reply_text(
+            "👥 *Group Tools*",
+            reply_markup=Keyboards.group_tools_menu(),
             parse_mode='Markdown'
         )
     
@@ -697,51 +806,93 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         await update.message.reply_text(
-            "👑 *Admin Control Panel*",
+            "👑 *Admin Panel*",
             reply_markup=Keyboards.admin_panel(),
             parse_mode='Markdown'
         )
     
     elif text == "🛠️ Tools":
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await update.message.reply_text(f"🕐 Current Time: `{current_time}`", parse_mode='Markdown')
+        await update.message.reply_text(
+            f"🛠️ *Tools*\n\n"
+            f"🕐 Time: `{current_time}`\n"
+            f"💻 Status: Online\n\n"
+            f"Use /help for commands.",
+            parse_mode='Markdown'
+        )
     
     else:
-        # Handle general messages here (copy your existing handle_message code)
-        user_id = str(update.effective_user.id)
-        
-        # Update user data
-        if user_id not in user_data:
-            user_data[user_id] = {
-                "first_seen": datetime.now().isoformat(),
-                "username": update.effective_user.username,
-                "first_name": update.effective_user.first_name,
-                "message_count": 0,
-                "last_seen": datetime.now().isoformat()
-            }
-        
-        user_data[user_id]["message_count"] = user_data[user_id].get("message_count", 0) + 1
-        user_data[user_id]["last_seen"] = datetime.now().isoformat()
-        
-        # Smart replies
-        responses = {
-            'hello': "👋 Hello! How can I help you today?",
-            'hi': "👋 Hi there! Ready to explore some features?",
-            'thanks': "😊 You're welcome!",
-            'thank you': "😊 Happy to help!",
-            'how are you': "🤖 I'm running perfectly!",
-            'bye': "👋 Goodbye! Come back anytime!"
-        }
-        
-        for key, response in responses.items():
-            if key in text.lower():
-                await update.message.reply_text(response)
-                break
-        
-        DataManager.save_data(USER_FILE, user_data)
+        await handle_general_message(update, context)
 
-# Then in main(), keep only ONE handler:
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu))
+# ==================== GENERAL MESSAGE HANDLER ====================
+async def handle_general_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+    
+    user_id = str(update.effective_user.id)
+    text = update.message.text or ""
+    
+    if user_id not in user_data:
+        user_data[user_id] = {
+            "first_seen": datetime.now().isoformat(),
+            "username": update.effective_user.username,
+            "first_name": update.effective_user.first_name,
+            "message_count": 0,
+            "last_seen": datetime.now().isoformat()
+        }
+    
+    user_data[user_id]["message_count"] = user_data[user_id].get("message_count", 0) + 1
+    user_data[user_id]["last_seen"] = datetime.now().isoformat()
+    
+    if update.effective_chat.type in ["group", "supergroup"]:
+        violation = ModerationSystem.check_violation(text, user_id)
+        if violation:
+            await ModerationSystem.take_action(update, context, violation, user_id)
+            DataManager.save_data(USER_FILE, user_data)
+            return
+    
+    text_lower = text.lower()
+    
+    if any(word in text_lower for word in ['hello', 'hi', 'hey', 'hola', 'namaste']):
+        greetings = [
+            f"👋 Hello {update.effective_user.first_name}!",
+            f"Hi there! 👋",
+            f"Hey {update.effective_user.first_name}!",
+            f"Namaste! 🙏"
+        ]
+        await update.message.reply_text(random.choice(greetings))
+    
+    elif any(word in text_lower for word in ['thanks', 'thank you', 'thx', 'thank']):
+        thanks = [
+            "😊 You're welcome!",
+            "Happy to help! 🌟",
+            "Anytime! 😊",
+            "Glad I could assist! 👍"
+        ]
+        await update.message.reply_text(random.choice(thanks))
+    
+    elif any(phrase in text_lower for phrase in ['how are you', 'how r u', 'how doin']):
+        responses = [
+            "🤖 I'm doing great!",
+            "Running perfectly! 💫",
+            "All systems operational!",
+            "Better now that you're here! 😊"
+        ]
+        await update.message.reply_text(random.choice(responses))
+    
+    elif any(word in text_lower for word in ['bye', 'goodbye', 'see you', 'tata']):
+        byes = [
+            "👋 Goodbye!",
+            "See you later! 👋",
+            "Take care! 🌟",
+            "Bye! Come back anytime!"
+        ]
+        await update.message.reply_text(random.choice(byes))
+    
+    elif any(word in text_lower for word in ['help', 'support', 'guide']):
+        await update.message.reply_text("Need help? Try /help 📖")
+    
+    DataManager.save_data(USER_FILE, user_data)
 
 # ==================== BUTTON HANDLER ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -771,6 +922,59 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             song = await FreeAPIServices.get_song_suggestion()
             await query.edit_message_text(song, reply_markup=Keyboards.fun_menu())
         
+        elif data == "fun_motivation":
+            motivation = AutoMessaging.get_motivation()
+            await query.edit_message_text(motivation, reply_markup=Keyboards.fun_menu(), parse_mode='Markdown')
+        
+        elif data == "group_welcome":
+            await query.edit_message_text(
+                "👋 *Welcome Messages*\n\n"
+                "• New members are welcomed\n"
+                "• Random welcome templates\n"
+                "• Auto-enabled",
+                reply_markup=Keyboards.group_tools_menu(),
+                parse_mode='Markdown'
+            )
+        
+        elif data == "group_mod":
+            await query.edit_message_text(
+                "🛡️ *Moderation*\n\n"
+                "• Bad words filter: Active\n"
+                "• Spam protection: Active\n"
+                "• Link moderation: Active",
+                reply_markup=Keyboards.group_tools_menu(),
+                parse_mode='Markdown'
+            )
+        
+        elif data == "group_auto":
+            intervals = DataManager.load_data(INTERVALS_FILE, {})
+            current = intervals.get(str(update.effective_chat.id), 3)
+            await query.edit_message_text(
+                f"⏰ *Auto Messages*\n\n"
+                f"• Interval: {current} hours\n"
+                f"• Use /setinterval to change\n"
+                f"• Use /toggleauto to disable",
+                reply_markup=Keyboards.group_tools_menu(),
+                parse_mode='Markdown'
+            )
+        
+        elif data == "group_stats":
+            chat = update.effective_chat
+            member_count = 0
+            try:
+                member_count = await chat.get_member_count()
+            except:
+                pass
+            
+            await query.edit_message_text(
+                f"📊 *Group Stats*\n\n"
+                f"• Name: {chat.title}\n"
+                f"• Members: {member_count}\n"
+                f"• ID: `{chat.id}`",
+                reply_markup=Keyboards.group_tools_menu(),
+                parse_mode='Markdown'
+            )
+        
         elif data == "admin_stats":
             if update.effective_user.id != ADMIN_ID:
                 await query.edit_message_text("❌ Admin access required!")
@@ -778,35 +982,44 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             user_count = len(user_data)
             group_count = len(group_data)
-            active_today = len([u for u in user_data.values() 
-                              if datetime.fromisoformat(u.get('last_seen', datetime.now().isoformat())) > datetime.now() - timedelta(days=1)])
+            
+            active_today = 0
+            for u in user_data.values():
+                try:
+                    last_seen = datetime.fromisoformat(u.get('last_seen', datetime.now().isoformat()))
+                    if last_seen > datetime.now() - timedelta(days=1):
+                        active_today += 1
+                except:
+                    pass
+            
+            total_messages = sum(u.get('message_count', 0) for u in user_data.values())
             
             stats_text = f"""
-📊 *Admin Statistics*
+📊 *Admin Stats*
 
 👥 Users: {user_count}
+📱 Active Today: {active_today}
 💬 Groups: {group_count}
-📈 Active Today: {active_today}
-🔄 Total Messages: {sum(u.get('message_count', 0) for u in user_data.values())}
-
-🛡️ Moderation: Active
-🔔 Auto Messages: Ready
-📢 Broadcasting: Enabled
+🔄 Messages: {total_messages}
 """
             await query.edit_message_text(stats_text, reply_markup=Keyboards.admin_panel(), parse_mode='Markdown')
         
         elif data == "admin_broadcast":
+            if update.effective_user.id != ADMIN_ID:
+                await query.edit_message_text("❌ Admin access required!")
+                return
+            
             success_count = 0
             for user_id in user_data.keys():
                 try:
                     await context.bot.send_message(
                         chat_id=int(user_id),
-                        text="📢 *Broadcast from Admin*\n\nThis is a test broadcast message! 🌟",
+                        text="📢 *Broadcast*\n\nHello from Alita Assistant! 🌟",
                         parse_mode='Markdown'
                     )
                     success_count += 1
                     await asyncio.sleep(0.1)
-                except Exception:
+                except:
                     continue
             
             await query.edit_message_text(
@@ -815,12 +1028,50 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         
         elif data == "admin_channel":
+            if update.effective_user.id != ADMIN_ID:
+                await query.edit_message_text("❌ Admin access required!")
+                return
+            
             await ChannelMonitor.check_channel_activity(context)
-            await query.edit_message_text("✅ Channel check completed!", reply_markup=Keyboards.admin_panel())
+            await query.edit_message_text("✅ Channel check done!", reply_markup=Keyboards.admin_panel())
         
         elif data == "admin_auto":
+            if update.effective_user.id != ADMIN_ID:
+                await query.edit_message_text("❌ Admin access required!")
+                return
+            
             await AutoMessaging.send_auto_message(context, update.effective_chat.id)
             await query.edit_message_text("✅ Auto message sent!", reply_markup=Keyboards.admin_panel())
+        
+        elif data == "admin_groups":
+            if update.effective_user.id != ADMIN_ID:
+                await query.edit_message_text("❌ Admin access required!")
+                return
+            
+            groups_list = "📋 *Groups*\n\n"
+            if group_data:
+                for gid, ginfo in list(group_data.items())[:10]:
+                    title = ginfo.get('title', 'Unknown')
+                    groups_list += f"• {title}\n  ID: `{gid}`\n\n"
+            else:
+                groups_list += "No groups yet."
+            
+            await query.edit_message_text(groups_list, reply_markup=Keyboards.admin_panel(), parse_mode='Markdown')
+        
+        elif data == "admin_moderation":
+            if update.effective_user.id != ADMIN_ID:
+                await query.edit_message_text("❌ Admin access required!")
+                return
+            
+            mod_text = """
+🛡️ *Moderation Settings*
+
+• Bad words filter: Enabled
+• Spam protection: Enabled
+• Flood control: Enabled
+• Link moderation: Enabled
+"""
+            await query.edit_message_text(mod_text, reply_markup=Keyboards.admin_panel(), parse_mode='Markdown')
         
         elif data == "back_main":
             await query.edit_message_text(
@@ -831,61 +1082,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         else:
             await query.edit_message_text(
-                "🛠️ Feature in development!",
+                "🛠️ Coming soon!",
                 reply_markup=Keyboards.back_only()
             )
     
     except Exception as e:
-        logger.error(f"Button handler error: {e}")
+        logger.error(f"Button error: {e}")
         await query.edit_message_text(
-            "❌ Service temporarily unavailable",
+            "❌ Error",
             reply_markup=Keyboards.back_only()
         )
-
-# ==================== MESSAGE HANDLER ====================
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
-        return
-    
-    user_id = str(update.effective_user.id)
-    text = update.message.text or ""
-    
-    # Update user data
-    if user_id not in user_data:
-        user_data[user_id] = {
-            "first_seen": datetime.now().isoformat(),
-            "username": update.effective_user.username,
-            "first_name": update.effective_user.first_name,
-            "message_count": 0,
-            "last_seen": datetime.now().isoformat()
-        }
-    
-    user_data[user_id]["message_count"] = user_data[user_id].get("message_count", 0) + 1
-    user_data[user_id]["last_seen"] = datetime.now().isoformat()
-    
-    # Auto-moderation in groups
-    if update.effective_chat.type in ["group", "supergroup"]:
-        violation = ModerationSystem.check_violation(text, user_id)
-        if violation:
-            await ModerationSystem.take_action(update, context, violation, user_id)
-            return
-    
-    # Smart replies
-    responses = {
-        'hello': "👋 Hello! How can I help you today?",
-        'hi': "👋 Hi there! Ready to explore some features?",
-        'thanks': "😊 You're welcome!",
-        'thank you': "😊 Happy to help!",
-        'how are you': "🤖 I'm running perfectly!",
-        'bye': "👋 Goodbye! Come back anytime!"
-    }
-    
-    for key, response in responses.items():
-        if key in text.lower():
-            await update.message.reply_text(response)
-            break
-    
-    DataManager.save_data(USER_FILE, user_data)
 
 # ==================== GROUP HANDLERS ====================
 async def group_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -893,9 +1099,9 @@ async def group_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     new_members = update.message.new_chat_members
+    
     for member in new_members:
         if member.id == context.bot.id:
-            # Bot added to group
             group_id = str(update.effective_chat.id)
             group_data[group_id] = {
                 "title": update.effective_chat.title,
@@ -903,84 +1109,94 @@ async def group_welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
             DataManager.save_data(GROUP_FILE, group_data)
             
-            await update.message.reply_text(
-                "🤖 Thanks for adding Alita Assistant!\n\n"
-                "I provide:\n• Auto-moderation\n• Entertainment\n• Utilities\n"
-                "• Auto responses every 3 hours\n\n"
-                "Use /help to get started! 🚀"
-            )
-        else:
-            # Welcome new user
+            groups_backup = DataManager.load_data("groups_backup.json", [])
+            if group_id not in groups_backup:
+                groups_backup.append(group_id)
+                DataManager.save_data("groups_backup.json", groups_backup)
+            
             welcome_msg = f"""
-👋 Welcome {member.first_name} to {update.effective_chat.title}!
+🤖 *Thanks for adding me!*
 
-I'm Alita Assistant 🤖 - here to help with:
-• Entertainment & fun
-• Information & utilities  
-• Group moderation
-• Periodic updates
+✅ Auto-moderation
+✅ Welcome messages
+✅ Auto updates every 3h
+✅ Entertainment
 
-Use /rules to see group guidelines
-Use /help to explore features
-
-Enjoy your stay! 🌟
+Use /help for commands! 🚀
 """
             await update.message.reply_text(welcome_msg, parse_mode='Markdown')
+            
+        else:
+            welcome_templates = [
+                f"👋 Welcome {member.first_name}! 🌟",
+                f"Hey {member.first_name}! Welcome to the group! 🎉",
+                f"Please welcome {member.first_name}! 👋",
+                f"🎊 New member: {member.first_name}! Welcome!"
+            ]
+            
+            welcome_msg = random.choice(welcome_templates)
+            await update.message.reply_text(welcome_msg)
+
+async def group_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    left_member = update.message.left_chat_member
+    if left_member and left_member.id != context.bot.id:
+        if random.random() < 0.3:
+            goodbye = f"👋 Goodbye {left_member.first_name}!"
+            await update.message.reply_text(goodbye)
 
 # ==================== ERROR HANDLER ====================
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"Exception: {context.error}")
+    logger.error(f"Error: {context.error}")
 
 # ==================== PERIODIC TASK STARTER ====================
 async def start_periodic_messages(application: Application):
-    """Start periodic messages without using JobQueue"""
     async def periodic_wrapper():
+        await asyncio.sleep(60)
         while True:
             try:
-                # Create a context-like object
-                class Context:
+                class SimpleContext:
                     def __init__(self, bot):
                         self.bot = bot
                 
-                context = Context(application.bot)
+                context = SimpleContext(application.bot)
                 await periodic_group_messages(context)
                 
-                # Wait for 1 hour before next check
-                await asyncio.sleep(3600)  # Check every hour
+                if random.random() < 0.1:
+                    await ChannelMonitor.check_channel_activity(context)
+                
+                await asyncio.sleep(3600)
                 
             except Exception as e:
-                logger.error(f"Periodic wrapper error: {e}")
-                await asyncio.sleep(60)  # Wait 1 minute on error
+                logger.error(f"Periodic error: {e}")
+                await asyncio.sleep(300)
     
-    # Create and start the task
     asyncio.create_task(periodic_wrapper())
-    logger.info("✅ Periodic messaging task started")
+    logger.info("✅ Periodic messages started")
 
-# ==================== HEALTH CHECK ENDPOINT (for Render) ====================
+# ==================== HEALTH CHECK ====================
 async def health_check(request):
-    """Simple health check endpoint for Render"""
     return aiohttp.web.Response(text="OK")
 
-# ==================== MAIN APPLICATION ====================
 async def run_web_server():
-    """Run a simple web server for health checks (required by Render)"""
-    from aiohttp import web  # Import web here explicitly
-    
-    app = web.Application()
-    app.router.add_get('/', health_check)
-    app.router.add_get('/health', health_check)
-    
-    port = int(os.environ.get("PORT", 10000))
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    logger.info(f"✅ Health check server running on port {port}")
+    try:
+        from aiohttp import web
+        app = web.Application()
+        app.router.add_get('/', health_check)
+        app.router.add_get('/health', health_check)
+        
+        port = int(os.environ.get("PORT", 10000))
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', port)
+        await site.start()
+        logger.info(f"✅ Health server on port {port}")
+    except Exception as e:
+        logger.error(f"Health server error: {e}")
 
+# ==================== MAIN ====================
 def main():
-    # Setup signal handlers
     def signal_handler(signum, frame):
-        logger.info("🔄 Shutting down gracefully...")
+        logger.info("Shutting down...")
         DataManager.save_data(USER_FILE, user_data)
         DataManager.save_data(GROUP_FILE, group_data)
         DataManager.save_data(SETTINGS_FILE, bot_settings)
@@ -991,13 +1207,10 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Create application
-    application = Application.builder().token(TOKEN).build()
-    
-    # Add error handler
+    application = Application.builder().token(BOT_TOKEN).build()
     application.add_error_handler(error_handler)
     
-    # Command handlers
+    # Add handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("status", status_command))
@@ -1006,59 +1219,39 @@ def main():
     application.add_handler(CommandHandler("setinterval", set_auto_interval))
     application.add_handler(CommandHandler("toggleauto", toggle_auto))
     
-    # Button handlers
     application.add_handler(CallbackQueryHandler(button_handler))
-    
-    # Message handlers - IMPORTANT: Order matters!
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Group handlers
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, group_welcome))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, group_left))
     
-    # Set bot commands
     async def post_init(application: Application):
         await application.bot.set_my_commands([
-            BotCommand("start", "Start Alita Assistant"),
-            BotCommand("help", "Get help guide"),
-            BotCommand("status", "Check bot status"),
-            BotCommand("rules", "Show group rules"),
-            BotCommand("auto", "Trigger auto response"),
-            BotCommand("setinterval", "Set auto-response interval"),
-            BotCommand("toggleauto", "Toggle auto-responses")
+            BotCommand("start", "Start bot"),
+            BotCommand("help", "Help guide"),
+            BotCommand("status", "Bot status"),
+            BotCommand("rules", "Group rules"),
+            BotCommand("auto", "Trigger auto msg"),
+            BotCommand("setinterval", "Set interval"),
+            BotCommand("toggleauto", "Toggle auto")
         ])
-        logger.info("✅ Bot commands configured")
+        logger.info("✅ Commands set")
         
-        # Start periodic messages
         await start_periodic_messages(application)
-        
-        # Start health check server (required for Render)
-        await run_web_server()
+        asyncio.create_task(run_web_server())
+        logger.info("✅ Ready!")
     
     application.post_init = post_init
     
-    # Startup
     logger.info("🚀 Starting Alita Assistant...")
     logger.info(f"👑 Admin: {ADMIN_ID}")
-    logger.info(f"👥 Users: {len(user_data)}")
-    logger.info(f"💬 Groups: {len(group_data)}")
     
     try:
-        # Run the bot
-        application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True
-        )
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
     except Exception as e:
-        logger.error(f"❌ Bot failed: {e}")
+        logger.error(f"Bot failed: {e}")
         DataManager.save_data(USER_FILE, user_data)
         DataManager.save_data(GROUP_FILE, group_data)
-        DataManager.save_data(SETTINGS_FILE, bot_settings)
-        DataManager.save_data(CHANNEL_FILE, channel_data)
-        DataManager.save_data(SCHEDULE_FILE, scheduler.last_message_time)
         sys.exit(1)
 
 if __name__ == "__main__":
     main()
-
-
