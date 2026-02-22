@@ -395,7 +395,7 @@ class ModerationSystem:
     async def take_action(update: Update, context: ContextTypes.DEFAULT_TYPE, violation: str, user_id: str):
         user = update.effective_user
         actions = {
-            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language."),
+            "bad_language": ("⚠️ Language Warning", "Please maintain respectful language."),            
             "spamming": ("🚫 Spam Detected", "Please avoid sending too many messages."),
             "flooding": ("📢 Flood Warning", "Please keep messages concise."),
             "link_spam": ("🔗 Link Spam", "Too many links detected.")
@@ -927,14 +927,16 @@ async def health_check(request):
 # ==================== MAIN APPLICATION ====================
 async def run_web_server():
     """Run a simple web server for health checks (required by Render)"""
-    app = aiohttp.web.Application()
+    from aiohttp import web  # Import web here explicitly
+    
+    app = web.Application()
     app.router.add_get('/', health_check)
     app.router.add_get('/health', health_check)
     
     port = int(os.environ.get("PORT", 10000))
-    runner = aiohttp.web.AppRunner(app)
+    runner = web.AppRunner(app)
     await runner.setup()
-    site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
+    site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     logger.info(f"✅ Health check server running on port {port}")
 
@@ -1021,3 +1023,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
