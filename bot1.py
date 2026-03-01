@@ -36,8 +36,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Your bot token - CHANGE THIS TO YOUR BOT TOKEN
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your actual bot token
-ADMIN_ID = 123456789  # Replace with your admin ID
+BOT_TOKEN = "8168577329:AAFgYEHmIe-SDuRL3tqt6rx1MtAnJprSbRc"  # Replace with your actual bot token
+ADMIN_ID = 7327016053   # Replace with your admin ID
 
 # ==================== DATA MANAGEMENT ====================
 class Database:
@@ -1207,3 +1207,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
