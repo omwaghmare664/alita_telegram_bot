@@ -13,6 +13,7 @@ import random
 import re
 import sys
 import time
+import signal
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
@@ -39,6 +40,12 @@ logger = logging.getLogger(__name__)
 # Your bot token - CHANGE THIS TO YOUR BOT TOKEN
 BOT_TOKEN = "8168577329:AAFgYEHmIe-SDuRL3tqt6rx1MtAnJprSbRc"  # Replace with your actual bot token
 ADMIN_ID = 7327016053   # Replace with your admin ID
+
+# Global variables for cleanup
+application = None
+web_runner = None
+start_time = time.time()
+shutdown_event = asyncio.Event()
 
 # ==================== DATA MANAGEMENT ====================
 class Database:
@@ -1283,7 +1290,7 @@ async def periodic_tasks(app: Application):
     """Run periodic tasks"""
     logger.info("✅ Periodic tasks started")
     
-    while True:
+    while not shutdown_event.is_set():
         try:
             groups = db.get('groups', default={})
             
@@ -1306,7 +1313,11 @@ async def periodic_tasks(app: Application):
                     logger.error(f"Error processing group {chat_id_str}: {e}")
                     continue
             
-            await asyncio.sleep(60)  # Check every minute
+            # Wait for 60 seconds or until shutdown
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                pass
             
         except Exception as e:
             logger.error(f"Periodic task error: {e}")
@@ -1324,8 +1335,19 @@ async def health_check(request):
         content_type="application/json"
     )
 
+async def health_stats(request):
+    """Return basic stats"""
+    stats = {
+        "users": len(db.get('users', default={})),
+        "groups": len(db.get('groups', default={})),
+        "warnings": len(db.get('warnings', default={})),
+        "uptime": time.time() - start_time
+    }
+    return aiohttp.web.json_response(stats)
+
 async def run_web_server():
     """Run health check server"""
+    global web_runner
     try:
         from aiohttp import web
         
@@ -1336,26 +1358,21 @@ async def run_web_server():
         
         port = int(os.environ.get("PORT", 10000))
         
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', port)
+        web_runner = web.AppRunner(app)
+        await web_runner.setup()
+        site = web.TCPSite(web_runner, '0.0.0.0', port)
         await site.start()
         
         logger.info(f"✅ Health check server running on port {port}")
-        return runner
     except Exception as e:
         logger.error(f"Health server error: {e}")
-        return None
 
-async def health_stats(request):
-    """Return basic stats"""
-    stats = {
-        "users": len(db.get('users', default={})),
-        "groups": len(db.get('groups', default={})),
-        "warnings": len(db.get('warnings', default={})),
-        "uptime": time.time() - start_time if 'start_time' in globals() else 0
-    }
-    return aiohttp.web.json_response(stats)
+async def shutdown_web_server():
+    """Shutdown web server gracefully"""
+    global web_runner
+    if web_runner:
+        await web_runner.cleanup()
+        logger.info("✅ Web server shut down")
 
 # ==================== BROADCAST COMMAND ====================
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1397,36 +1414,54 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-# ==================== MAIN ====================
-start_time = time.time()
+# ==================== SHUTDOWN HANDLER ====================
+async def shutdown_handler(sig, frame):
+    """Handle shutdown signals"""
+    logger.info(f"Received signal {sig}, shutting down...")
+    shutdown_event.set()
 
+def setup_signal_handlers():
+    """Setup signal handlers for graceful shutdown"""
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown_handler(s, None)))
+
+# ==================== MAIN ====================
 async def main():
     """Main async function"""
+    global application
+    
+    # Setup signal handlers
+    try:
+        setup_signal_handlers()
+    except:
+        logger.warning("Signal handlers not supported on this platform")
+    
     # Build application
-    app = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).build()
     
     # Add command handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("rules", rules))
-    app.add_handler(CommandHandler("mywarns", mywarns))
-    app.add_handler(CommandHandler("warn", warn))
-    app.add_handler(CommandHandler("broadcast", broadcast))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("rules", rules))
+    application.add_handler(CommandHandler("mywarns", mywarns))
+    application.add_handler(CommandHandler("warn", warn))
+    application.add_handler(CommandHandler("broadcast", broadcast))
     
     # Add callback query handler
-    app.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(CallbackQueryHandler(button_callback))
     
     # Add message handlers
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new))
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, goodbye_left))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new))
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, goodbye_left))
     
     # Add error handler
-    app.add_error_handler(error_handler)
+    application.add_error_handler(error_handler)
     
     # Set bot commands
     try:
-        await app.bot.set_my_commands([
+        await application.bot.set_my_commands([
             BotCommand("start", "Start the bot"),
             BotCommand("help", "Show help"),
             BotCommand("rules", "Show rules"),
@@ -1437,10 +1472,10 @@ async def main():
         logger.error(f"Failed to set commands: {e}")
     
     # Start health check server
-    runner = await run_web_server()
+    await run_web_server()
     
     # Start periodic tasks
-    asyncio.create_task(periodic_tasks(app))
+    asyncio.create_task(periodic_tasks(application))
     
     logger.info("🚀 Bot started! Fully automated")
     logger.info(f"Admin ID: {ADMIN_ID}")
@@ -1448,11 +1483,13 @@ async def main():
     
     # Start polling
     try:
-        await app.run_polling(allowed_updates=Update.ALL_TYPES)
+        await application.run_polling(allowed_updates=Update.ALL_TYPES)
     finally:
         # Cleanup
-        if runner:
-            await runner.cleanup()
+        logger.info("Shutting down...")
+        await shutdown_web_server()
+        await application.shutdown()
+        logger.info("✅ Bot stopped")
 
 def run():
     """Entry point"""
